@@ -1,0 +1,7 @@
+{
+  "name": "MyOS - Intelligent Hub",
+  "description": "A personal AI operating system that converts unstructured thoughts into structured action guides and plans.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
