@@ -5,6 +5,19 @@ import { SYSTEM_INSTRUCTION_PROCESSOR, SYSTEM_INSTRUCTION_PLANNER, SYSTEM_INSTRU
 // Initialize Gemini Client
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
+// Helper to clean Markdown code blocks from JSON response
+const cleanJson = (text: string): string => {
+  if (!text) return "{}";
+  let clean = text.trim();
+  // Remove markdown wrapping
+  if (clean.startsWith('```json')) {
+    clean = clean.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (clean.startsWith('```')) {
+    clean = clean.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+  return clean;
+};
+
 // Schema for Generating a Plan
 const planningSchema: Schema = {
   type: Type.OBJECT,
@@ -28,15 +41,11 @@ const planningSchema: Schema = {
 export const processInput = async (text: string, hierarchy: Record<string, string[]>, imageBase64?: string): Promise<ProcessingResult> => {
   try {
     // 1. Ensure "General" is available for EVERY category in the hierarchy
-    // This allows the model to fallback to "General" if no specific project fits
-    const enrichedHierarchy = { ...hierarchy };
-    Object.keys(enrichedHierarchy).forEach(cat => {
-        // We create a new array to avoid mutating the passed reference if it matters, 
-        // and ensure General is an option.
-        const projects = enrichedHierarchy[cat] || [];
-        if (!projects.includes('General')) {
-            enrichedHierarchy[cat] = [...projects, 'General'];
-        }
+    const enrichedHierarchy: Record<string, string[]> = {};
+    Object.keys(hierarchy).forEach(cat => {
+        const projects = hierarchy[cat] || [];
+        // Create new array to avoid mutation issues
+        enrichedHierarchy[cat] = projects.includes('General') ? projects : [...projects, 'General'];
     });
 
     // Extract valid Categories (Keys) and all valid Projects (Values flattened)
@@ -119,7 +128,16 @@ export const processInput = async (text: string, hierarchy: Record<string, strin
     const jsonText = response.text;
     if (!jsonText) throw new Error("No response from AI");
     
-    return JSON.parse(jsonText) as ProcessingResult;
+    // Clean JSON before parsing to handle potential markdown wrappers
+    const cleanedJson = cleanJson(jsonText);
+    
+    try {
+        return JSON.parse(cleanedJson) as ProcessingResult;
+    } catch (parseError) {
+        console.error("JSON Parse Error. Raw Text:", jsonText);
+        throw new Error("Failed to parse AI response.");
+    }
+
   } catch (error) {
     console.error("Error processing input:", error);
     throw error;
@@ -141,7 +159,8 @@ export const generatePlan = async (goal: string, duration: string): Promise<Plan
     const jsonText = response.text;
     if (!jsonText) throw new Error("No response from AI");
 
-    return JSON.parse(jsonText) as PlanningResult;
+    const cleanedJson = cleanJson(jsonText);
+    return JSON.parse(cleanedJson) as PlanningResult;
   } catch (error) {
     console.error("Error generating plan:", error);
     throw error;
