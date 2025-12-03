@@ -534,19 +534,88 @@ export const App: React.FC = () => {
     <div className="flex flex-col h-full relative">
       <div className="bg-white border-b border-slate-100 sticky top-0 z-10">
         <div className="p-4 flex items-center justify-between relative">
-            <div className="flex items-center space-x-2"><div className="relative z-50"><button onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)} className="flex items-center space-x-2 text-2xl font-bold text-slate-900 hover:text-indigo-700 transition-colors focus:outline-none"><span>{selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span><ChevronDown className={`w-6 h-6 text-indigo-500 transition-transform duration-300 ${isMonthPickerOpen ? 'rotate-180' : ''}`} /></button>{isMonthPickerOpen && (<><div className="fixed inset-0 z-40" onClick={() => setIsMonthPickerOpen(false)}></div><div className="absolute top-full left-0 mt-3 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-80 overflow-y-auto z-50 no-scrollbar"><div className="p-2 space-y-1">{monthOptions.map(d => (<button key={d.toISOString()} onClick={() => { setSelectedDate(d); setIsMonthPickerOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium ${d.getFullYear()===selectedDate.getFullYear() && d.getMonth()===selectedDate.getMonth() ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}>{d.toLocaleString('default', { month: 'long', year: 'numeric' })}</button>))}</div></div></>)}</div></div>
-            <div className="flex items-center space-x-3"><p className="text-slate-400 text-xs font-medium">{selectedDate.toDateString() === today.toDateString() ? "Today" : ""}</p><button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="p-2 bg-slate-50 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors">{isCalendarOpen ? <ChevronUp className="w-5 h-5 text-slate-600" /> : <CalendarIcon className="w-5 h-5 text-slate-600" />}</button></div>
-        </div>
-        <div className={`overflow-hidden transition-all duration-300 ${isCalendarOpen ? 'max-h-80 border-b border-slate-100' : 'max-h-0'}`}><div className="p-4 pt-0"><div className="grid grid-cols-7 gap-1 text-center mb-3">{['S','M','T','W','T','F','S'].map(d => <div key={d} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d}</div>)}</div><div className="grid grid-cols-7 gap-y-2 gap-x-1">{blanks.map(x => <div key={`blank-${x}`} />)}{daysArray.map(day => { const dateObj = new Date(selectedYear, selectedDate.getMonth(), day); const isSelected = dateObj.toDateString() === selectedDate.toDateString(); return (<button key={day} onClick={() => setSelectedDate(dateObj)} className={`h-9 w-9 rounded-full text-sm flex items-center justify-center mx-auto transition-all font-medium ${isSelected ? 'bg-indigo-600 text-white shadow-md transform scale-105' : 'text-slate-700 hover:bg-slate-100'}`}>{day}</button>); })}</div></div></div>
-      </div>
-      <div className="flex-1 overflow-y-auto p-6 pb-24 no-scrollbar">
-        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between"><span>Focus for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span><span className="text-indigo-500 font-bold">{allItems.filter(i => i.status === 'completed').length}/{allItems.length} Done</span></h2>
-        {allItems.length === 0 ? <div className="flex flex-col items-center justify-center py-20 text-slate-400"><div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4"><CalendarIcon className="w-8 h-8 opacity-20" /></div><p className="font-medium">No tasks scheduled.</p></div> : allItems.map(task => (
-            <div key={task.id} className={`group flex items-center p-4 rounded-xl border transition-all duration-300 mt-4 ${task.status === 'completed' ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-200 hover:border-indigo-200 shadow-sm'}`}>
-                <button onClick={() => handleTaskComplete(task.id, task.isMemory)} className="mr-4 transition-transform active:scale-90 focus:outline-none">{task.status === 'completed' ? <CheckCircle2 className="w-6 h-6 text-green-500 fill-green-50" /> : <Circle className="w-6 h-6 text-slate-300 group-hover:text-indigo-500" />}</button>
-                <div className="flex-1"><div className="flex items-center space-x-2 mb-1.5">{task.isMemory && <Tag className="w-3 h-3 text-indigo-500" />}<span className={`text-[10px] uppercase font-bold tracking-wider ${task.isMemory ? 'text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded' : 'text-slate-400'}`}>{task.tag}</span></div><h3 className={`font-medium text-base transition-colors ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title.replace(/^Day \d+:\s*/, '')}</h3></div>
+            <div className="flex items-center space-x-2">
+                <div className="relative z-50">
+                    <button onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)} className="flex items-center space-x-2 text-2xl font-bold text-slate-900 hover:text-indigo-700 transition-colors focus:outline-none">
+                        <span>{selectedDate.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
+                        <ChevronDown className={`w-6 h-6 text-indigo-500 transition-transform duration-300 ${isMonthPickerOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isMonthPickerOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsMonthPickerOpen(false)}></div>
+                            <div className="absolute top-full left-0 mt-3 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 max-h-80 overflow-y-auto z-50 no-scrollbar">
+                                <div className="p-2 space-y-1">
+                                    {monthOptions.map(d => (
+                                        <button key={d.toISOString()} onClick={() => { setSelectedDate(d); setIsMonthPickerOpen(false); }} className={`w-full text-left px-4 py-3 rounded-xl text-sm font-medium ${d.getFullYear()===selectedDate.getFullYear() && d.getMonth()===selectedDate.getMonth() ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}>
+                                            {d.toLocaleString('default', { month: 'long', year: 'numeric' })}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
-        ))}
+            <div className="flex items-center space-x-3">
+                 <p className="text-slate-400 text-xs font-medium">{selectedDate.toDateString() === today.toDateString() ? "Today" : ""}</p>
+                <button onClick={() => setIsCalendarOpen(!isCalendarOpen)} className="p-2 bg-slate-50 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+                    {isCalendarOpen ? <ChevronUp className="w-5 h-5 text-slate-600" /> : <CalendarIcon className="w-5 h-5 text-slate-600" />}
+                </button>
+            </div>
+        </div>
+        
+        {/* 日历网格区域 */}
+        <div className={`overflow-hidden transition-all duration-300 ${isCalendarOpen ? 'max-h-80 border-b border-slate-100' : 'max-h-0'}`}>
+            <div className="p-4 pt-0">
+                {/* 🔴 修复点：这里使用了 (d, i) 和 key={i} 来解决重复 Key 报错 */}
+                <div className="grid grid-cols-7 gap-1 text-center mb-3">
+                    {['S','M','T','W','T','F','S'].map((d, i) => (
+                        <div key={i} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{d}</div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-7 gap-y-2 gap-x-1">
+                    {blanks.map(x => <div key={`blank-${x}`} />)}
+                    {daysArray.map(day => {
+                        const dateObj = new Date(selectedYear, selectedDate.getMonth(), day);
+                        const isSelected = dateObj.toDateString() === selectedDate.toDateString();
+                        return (
+                            <button key={day} onClick={() => setSelectedDate(dateObj)} className={`h-9 w-9 rounded-full text-sm flex items-center justify-center mx-auto transition-all font-medium ${isSelected ? 'bg-indigo-600 text-white shadow-md transform scale-105' : 'text-slate-700 hover:bg-slate-100'}`}>
+                                {day}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-6 pb-24 no-scrollbar">
+        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between">
+             <span>Focus for {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+             <span className="text-indigo-500 font-bold">{allItems.filter(i => i.status === 'completed').length}/{allItems.length} Done</span>
+        </h2>
+        
+        {allItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4"><CalendarIcon className="w-8 h-8 opacity-20" /></div>
+                <p className="font-medium">No tasks scheduled.</p>
+            </div>
+        ) : (
+             allItems.map(task => (
+                <div key={task.id} className={`group flex items-center p-4 rounded-xl border transition-all duration-300 mt-4 ${task.status === 'completed' ? 'bg-slate-50 border-slate-100' : 'bg-white border-slate-200 hover:border-indigo-200 shadow-sm'}`}>
+                  <button onClick={() => handleTaskComplete(task.id, task.isMemory)} className="mr-4 transition-transform active:scale-90 focus:outline-none">
+                    {task.status === 'completed' ? <CheckCircle2 className="w-6 h-6 text-green-500 fill-green-50" /> : <Circle className="w-6 h-6 text-slate-300 group-hover:text-indigo-500" />}
+                  </button>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-1.5">
+                        {task.isMemory && <Tag className="w-3 h-3 text-indigo-500" />}
+                        <span className={`text-[10px] uppercase font-bold tracking-wider ${task.isMemory ? 'text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded' : 'text-slate-400'}`}>{task.tag}</span>
+                    </div>
+                    <h3 className={`font-medium text-base transition-colors ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{task.title.replace(/^Day \d+:\s*/, '')}</h3>
+                  </div>
+                </div>
+             ))
+        )}
       </div>
     </div>
     );

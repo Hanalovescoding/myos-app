@@ -7,32 +7,21 @@ import { SYSTEM_INSTRUCTION_PROCESSOR, SYSTEM_INSTRUCTION_PLANNER, SYSTEM_INSTRU
 // --- 配置区域 ---
 const CURRENT_PROVIDER = import.meta.env.VITE_AI_PROVIDER || 'gemini';
 
-// --- 延迟初始化 (Lazy Initialization) ---
-// 为什么要这样做？防止网页刚打开时因为缺少 Key 而直接白屏崩溃。
-
-let geminiClientInstance: any = null;
-let deepseekClientInstance: OpenAI | null = null;
+// --- 客户端获取函数 (每次重新创建，防止缓存旧Key) ---
 
 const getGeminiClient = () => {
-    if (!geminiClientInstance) {
-        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-        // 如果没有 Key，给一个假的不让 SDK 报错，等到调用时再抛出真正的网络错误
-        geminiClientInstance = new GoogleGenAI({ apiKey: apiKey || "dummy_key_to_prevent_crash" });
-    }
-    return geminiClientInstance;
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY; // 👈 改回读取环境变量
+    return new GoogleGenAI({ apiKey: apiKey || "dummy_key_to_prevent_crash" });
 }
 
 const getDeepSeekClient = () => {
-    if (!deepseekClientInstance) {
-        const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
-        // 这里是修复白屏的关键：如果 Key 是空的，填一个假的字符串，防止 new OpenAI() 报错
-        deepseekClientInstance = new OpenAI({
-            baseURL: 'https://api.deepseek.com',
-            apiKey: apiKey || "dummy_key_to_prevent_crash", 
-            dangerouslyAllowBrowser: true 
-        });
-    }
-    return deepseekClientInstance;
+    const apiKey = import.meta.env.VITE_DEEPSEEK_API_KEY;
+    // 每次都读取最新的 Env，并创建新实例
+    return new OpenAI({
+        baseURL: 'https://api.deepseek.com',
+        apiKey: apiKey || "dummy_key_to_prevent_crash", 
+        dangerouslyAllowBrowser: true 
+    });
 }
 
 // --- 辅助函数：获取当前日期上下文 ---
@@ -85,7 +74,7 @@ export const processInput = async (text: string, hierarchy: Record<string, strin
   // 🟢 DeepSeek
   if (CURRENT_PROVIDER === 'deepseek') {
     try {
-      const client = getDeepSeekClient(); // ✅ 获取客户端
+      const client = getDeepSeekClient(); // ✅ 获取新实例
       const hierarchyStr = JSON.stringify(hierarchy, null, 2);
       const prompt = `
       ${SYSTEM_INSTRUCTION_PROCESSOR}
@@ -118,7 +107,7 @@ export const processInput = async (text: string, hierarchy: Record<string, strin
   // 🔵 Gemini
   else {
     try {
-      const client = getGeminiClient(); // ✅ 获取客户端
+      const client = getGeminiClient(); // ✅ 获取新实例
       const enrichedHierarchy: Record<string, string[]> = {};
       Object.keys(hierarchy).forEach(cat => {
           const projects = hierarchy[cat] || [];
@@ -127,13 +116,12 @@ export const processInput = async (text: string, hierarchy: Record<string, strin
 
       const validCategories = Object.keys(enrichedHierarchy);
       const safeCategories = validCategories.length > 0 ? validCategories : ["General"];
-      // Note: Full hierarchy validation logic omitted for brevity but should be here as per previous code
       
       const processingSchema: Schema = {
         type: Type.OBJECT,
         properties: {
           rootCategory: { type: Type.STRING, enum: safeCategories },
-          project: { type: Type.STRING }, // Simplified schema for brevity
+          project: { type: Type.STRING },
           subProject: { type: Type.STRING },
           type: { type: Type.STRING, enum: ["note", "plan", "inspiration"] },
           tags: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -165,7 +153,7 @@ export const processInput = async (text: string, hierarchy: Record<string, strin
       parts.push({ text: text || "Analyze this." });
 
       const response = await client.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash",
         contents: { parts: parts },
         config: {
           systemInstruction: `${SYSTEM_INSTRUCTION_PROCESSOR}\n\n${dateContext}\n\nHIERARCHY RULES: ${JSON.stringify(enrichedHierarchy)}`,
@@ -189,7 +177,7 @@ export const generatePlan = async (goal: string, duration: string): Promise<Plan
   const dateContext = getTodayContext();
   
   if (CURRENT_PROVIDER === 'deepseek') {
-    const client = getDeepSeekClient();
+    const client = getDeepSeekClient(); // ✅
     const prompt = `
     ${SYSTEM_INSTRUCTION_PLANNER}
     ${dateContext}
@@ -206,9 +194,9 @@ export const generatePlan = async (goal: string, duration: string): Promise<Plan
   }
 
   try {
-    const client = getGeminiClient();
+    const client = getGeminiClient(); // ✅
     const response = await client.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       contents: `Goal: ${goal}. Duration: ${duration}. Create a plan.`,
       config: {
         systemInstruction: `${SYSTEM_INSTRUCTION_PLANNER}\n${dateContext}`,
@@ -227,7 +215,7 @@ export const getAgentResponse = async (userMessage: string, memoriesContext: str
   const dateContext = getTodayContext();
 
   if (CURRENT_PROVIDER === 'deepseek') {
-    const client = getDeepSeekClient();
+    const client = getDeepSeekClient(); // ✅
     const completion = await client.chat.completions.create({
       messages: [
         { role: "system", content: `${SYSTEM_INSTRUCTION_AGENT}\n${dateContext}` },
@@ -240,9 +228,9 @@ export const getAgentResponse = async (userMessage: string, memoriesContext: str
   }
 
   try {
-    const client = getGeminiClient();
+    const client = getGeminiClient(); // ✅
     const response = await client.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash",
       contents: `Context: ${memoriesContext}. User: "${userMessage}"`,
       config: { systemInstruction: `${SYSTEM_INSTRUCTION_AGENT}\n${dateContext}` },
     });
@@ -254,7 +242,7 @@ export const getAgentResponse = async (userMessage: string, memoriesContext: str
 
 export const searchMemories = async (query: string, memories: string): Promise<string> => {
     if (CURRENT_PROVIDER === 'deepseek') {
-        const client = getDeepSeekClient();
+        const client = getDeepSeekClient(); // ✅
         const completion = await client.chat.completions.create({
           messages: [
             { role: "system", content: SYSTEM_INSTRUCTION_SEARCH },
@@ -266,9 +254,9 @@ export const searchMemories = async (query: string, memories: string): Promise<s
     }
 
     try {
-        const client = getGeminiClient();
+        const client = getGeminiClient(); // ✅
         const response = await client.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-flash",
             contents: `Query: "${query}". Data: ${memories}`,
             config: { systemInstruction: SYSTEM_INSTRUCTION_SEARCH }
         });
